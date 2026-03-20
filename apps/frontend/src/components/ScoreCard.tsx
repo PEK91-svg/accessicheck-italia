@@ -1,9 +1,3 @@
-import {
-  RadialBarChart,
-  RadialBar,
-  PolarAngleAxis,
-  ResponsiveContainer,
-} from 'recharts';
 import { ScanResult, ConformanceLevel } from '../types';
 
 interface ScoreCardProps {
@@ -93,33 +87,68 @@ function PrincipleBar({
   );
 }
 
+function ScoreGauge({ score }: { score: number }) {
+  const cx = 100;
+  const cy = 100;
+  const r = 72;
+  const strokeWidth = 16;
+
+  const color = score >= 80 ? '#16a34a' : score >= 50 ? '#ca8a04' : '#dc2626';
+
+  // Background arc: full semicircle from left to right through the top
+  const bgPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+
+  // Fill arc: from left to the angle corresponding to score
+  // angle=π at score=0 (left), angle=0 at score=100 (right)
+  const angle = Math.PI - (score / 100) * Math.PI;
+  const fillEndX = (cx + r * Math.cos(angle)).toFixed(3);
+  const fillEndY = (cy - r * Math.sin(angle)).toFixed(3);
+  // Avoid degenerate zero-length arc at score=0
+  const fillPath = score > 0
+    ? `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${fillEndX} ${fillEndY}`
+    : null;
+
+  return (
+    <svg
+      viewBox="0 0 200 110"
+      aria-hidden="true"
+      className="w-full"
+      style={{ overflow: 'visible' }}
+    >
+      {/* Background track */}
+      <path
+        d={bgPath}
+        fill="none"
+        stroke="#e5e7eb"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      {/* Fill arc */}
+      {fillPath && (
+        <path
+          d={fillPath}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  );
+}
+
 export function ScoreCard({ result }: ScoreCardProps) {
   const { score, conformanceLevel, summary } = result;
-
-  const gaugeData = [{ value: score.overall, fill: score.overall >= 80 ? '#16a34a' : score.overall >= 50 ? '#ca8a04' : '#dc2626' }];
 
   return (
     <section aria-label="Score di accessibilità" className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
       {/* Gauge score globale */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center">
-        <div className="h-40 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              cx="50%"
-              cy="75%"
-              innerRadius="60%"
-              outerRadius="100%"
-              startAngle={180}
-              endAngle={0}
-              data={gaugeData}
-            >
-              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-              <RadialBar background dataKey="value" cornerRadius={6} />
-            </RadialBarChart>
-          </ResponsiveContainer>
+        <div className="w-full max-w-[180px]">
+          <ScoreGauge score={score.overall} />
         </div>
-        <div className="text-center -mt-6">
+        <div className="text-center -mt-2">
           <div
             className="text-5xl font-bold font-heading"
             aria-label={`Score accessibilità: ${score.overall} su 100`}
