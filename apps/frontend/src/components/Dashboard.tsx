@@ -4,6 +4,7 @@ import { ScanResult } from '../types';
 import { ScoreCard } from './ScoreCard';
 import { ViolationsList } from './ViolationsList';
 import { ManualChecklist } from './ManualChecklist';
+import { PagesList } from './PagesList';
 import { getPdfUrl } from '../services/api';
 
 interface DashboardProps {
@@ -11,7 +12,7 @@ interface DashboardProps {
   onReset: () => void;
 }
 
-type Tab = 'violations' | 'manual' | 'passes';
+type Tab = 'violations' | 'pages' | 'manual' | 'passes';
 
 export function Dashboard({ result, onReset }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>('violations');
@@ -34,8 +35,11 @@ export function Dashboard({ result, onReset }: DashboardProps) {
     }
   };
 
+  const isMultiPage = result.pages && result.pages.length > 1;
+
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'violations', label: 'Violazioni', count: result.violations.length },
+    ...(isMultiPage ? [{ key: 'pages' as Tab, label: 'Pagine', count: result.pages!.length }] : []),
     { key: 'manual', label: 'Verifica Manuale', count: result.manualCheckRequired.length },
     { key: 'passes', label: 'Superati', count: result.passes.length },
   ];
@@ -47,12 +51,18 @@ export function Dashboard({ result, onReset }: DashboardProps) {
     <div>
       {/* Info scansione */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 text-sm text-gray-500">
-        <div>
+        <div className="flex flex-wrap items-center gap-x-2">
           <span className="font-medium text-gray-700 break-all">{result.url}</span>
-          <span className="mx-2">·</span>
+          <span>·</span>
           <time dateTime={result.timestamp}>{formattedDate}</time>
-          <span className="mx-2">·</span>
+          <span>·</span>
           <span>{durationSec}s</span>
+          {isMultiPage && (
+            <>
+              <span>·</span>
+              <span className="font-medium text-blue-600">{result.pages!.length} pagine analizzate</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -133,6 +143,17 @@ export function Dashboard({ result, onReset }: DashboardProps) {
       >
         <ViolationsList violations={result.violations} />
       </div>
+
+      {isMultiPage && (
+        <div
+          id="tab-panel-pages"
+          role="tabpanel"
+          aria-labelledby="tab-pages"
+          hidden={activeTab !== 'pages'}
+        >
+          <PagesList pages={result.pages!} baseUrl={result.url} />
+        </div>
+      )}
 
       <div
         id={`tab-panel-manual`}

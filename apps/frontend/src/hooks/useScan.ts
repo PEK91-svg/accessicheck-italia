@@ -5,7 +5,7 @@ import { ScanResult } from '../types';
 type ScanState =
   | { phase: 'idle' }
   | { phase: 'starting' }
-  | { phase: 'running'; scanId: string; progress: number; message: string }
+  | { phase: 'running'; scanId: string; progress: number; message: string; pagesScanned?: number; pagesTotal?: number }
   | { phase: 'completed'; result: ScanResult }
   | { phase: 'error'; message: string };
 
@@ -55,13 +55,21 @@ export function useScan() {
           return;
         }
 
-        // Ancora in corso — aggiorna il progresso (simulato)
-        const progress = Math.min(90, pollCountRef.current * (90 / MAX_POLLS));
+        // Ancora in corso — aggiorna il progresso
+        const multiProgress = 'progress' in data ? data.progress : null;
+        let progress: number;
+        if (multiProgress && multiProgress.pagesTotal > 0) {
+          progress = Math.round((multiProgress.pagesScanned / multiProgress.pagesTotal) * 90);
+        } else {
+          progress = Math.min(90, pollCountRef.current * (90 / MAX_POLLS));
+        }
         setState({
           phase: 'running',
           scanId,
-          progress: Math.round(progress),
-          message: 'Analisi in corso...',
+          progress,
+          message: ('message' in data && data.message) ? data.message : 'Analisi in corso...',
+          pagesScanned: multiProgress?.pagesScanned,
+          pagesTotal: multiProgress?.pagesTotal,
         });
       }
 
@@ -76,14 +84,21 @@ export function useScan() {
     }
   }, []);
 
-  const scan = useCallback(async (url: string) => {
+  const scan = useCallback(async (url: string, maxPages = 1) => {
     stopPolling();
     pollCountRef.current = 0;
     setState({ phase: 'starting' });
 
     try {
-      const { scanId } = await startScan(url);
-      setState({ phase: 'running', scanId, progress: 5, message: 'Caricamento pagina...' });
+      const { scanId } = await startScan(url, maxPages);
+      setState({
+        phase: 'running',
+        scanId,
+        progress: 5,
+        message: maxPages > 1 ? 'Scoperta pagine del sito...' : 'Caricamento pagina...',
+        pagesTotal: maxPages > 1 ? maxPages : undefined,
+        pagesScanned: 0,
+      });
       pollTimerRef.current = setTimeout(() => poll(scanId), POLL_INTERVAL_MS);
     } catch (err) {
       setState({

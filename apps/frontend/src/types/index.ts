@@ -42,6 +42,28 @@ export interface Score {
   robust: number;
 }
 
+export interface PageResult {
+  url: string;
+  score: Score;
+  conformanceLevel: ConformanceLevel;
+  summary: {
+    totalViolations: number;
+    totalPasses: number;
+    totalIncomplete: number;
+    totalInapplicable: number;
+    byCriticality: { critical: number; serious: number; moderate: number; minor: number };
+  };
+  violations: ViolationDetail[];
+  duration: number;
+  error?: string;
+}
+
+export interface ScanProgress {
+  currentUrl: string;
+  pagesScanned: number;
+  pagesTotal: number;
+}
+
 export interface ScanResult {
   id: string;
   url: string;
@@ -50,6 +72,9 @@ export interface ScanResult {
   status: ScanStatus;
   score: Score;
   conformanceLevel: ConformanceLevel;
+  maxPages?: number;
+  pages?: PageResult[];
+  progress?: ScanProgress;
   summary: {
     totalViolations: number;
     totalPasses: number;
@@ -83,4 +108,5 @@ export interface ScanPollingResponse {
   url: string;
   message?: string;
   error?: string;
+  progress?: ScanProgress;
 }

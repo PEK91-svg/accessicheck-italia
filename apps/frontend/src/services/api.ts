@@ -10,10 +10,10 @@ const api = axios.create({
 /**
  * Avvia una nuova scansione. Restituisce lo scanId.
  */
-export async function startScan(url: string): Promise<{ scanId: string }> {
+export async function startScan(url: string, maxPages = 1): Promise<{ scanId: string }> {
   const response = await api.post('/scan', {
     url,
-    options: { level: 'AA', standard: 'wcag21', locale: 'it', includeScreenshot: false },
+    options: { level: 'AA', standard: 'wcag21', locale: 'it', includeScreenshot: false, maxPages },
   });
   return { scanId: response.data.scanId };
 }

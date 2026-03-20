@@ -52,7 +52,7 @@ export default function App() {
                   Inserisci un URL per ottenere un report completo con mappatura normativa italiana
                   (Legge Stanca L. 4/2004, EAA D.Lgs. 82/2022, EN 301 549).
                 </p>
-                <ScanForm onScan={scan} isLoading={isLoading} />
+                <ScanForm onScan={(url, maxPages) => scan(url, maxPages)} isLoading={isLoading} />
               </>
             ) : (
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -80,6 +80,8 @@ export default function App() {
               <ScanProgress
                 progress={state.phase === 'running' ? state.progress : 0}
                 message={state.phase === 'running' ? state.message : 'Avvio scansione...'}
+                pagesScanned={state.phase === 'running' ? state.pagesScanned : undefined}
+                pagesTotal={state.phase === 'running' ? state.pagesTotal : undefined}
               />
             </div>
           )}

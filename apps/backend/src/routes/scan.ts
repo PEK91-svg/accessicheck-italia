@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { scanPage, validateUrl } from '../services/scanner';
 import { analyzeResults } from '../services/analyzer';
 import { generatePdfReport } from '../services/pdf';
+import { scanMultiplePages, aggregateResults } from '../services/multi-scanner';
 import { ScanResult, ScanStatus } from '../types';
 
 const router = Router();
@@ -20,6 +21,7 @@ const ScanRequestSchema = z.object({
       standard: z.enum(['wcag21', 'wcag22']).default('wcag21'),
       locale: z.enum(['it', 'en']).default('it'),
       includeScreenshot: z.boolean().default(false),
+      maxPages: z.number().int().min(1).max(50).default(1),
     })
     .optional(),
 });
@@ -75,23 +77,56 @@ router.post('/', async (req: Request, res: Response) => {
 
   console.info(`[api/scan] Avvio scansione ID=${scanId} URL=${url}`);
 
+  const maxPages = options?.maxPages ?? 1;
+
   // Esegui la scansione in background (non-blocking)
   setImmediate(async () => {
     try {
-      const rawData = await scanPage(url, options?.includeScreenshot ?? false);
-      const result = analyzeResults(url, rawData);
-      result.id = scanId; // Mantieni lo stesso ID
-      scanStore.set(scanId, { ...result, status: 'completed' });
-      console.info(`[api/scan] Completata ID=${scanId}, score=${result.score.overall}`);
+      if (maxPages === 1) {
+        // ─── Scansione singola pagina ──────────────────────────────────
+        const rawData = await scanPage(url, options?.includeScreenshot ?? false);
+        const result = analyzeResults(url, rawData);
+        result.id = scanId;
+        scanStore.set(scanId, { ...result, status: 'completed' });
+        console.info(`[api/scan] Completata ID=${scanId}, score=${result.score.overall}`);
+      } else {
+        // ─── Scansione multi-pagina ────────────────────────────────────
+        const { pages, totalDuration } = await scanMultiplePages(
+          url,
+          maxPages,
+          (progress) => {
+            // Aggiorna il progresso in store ad ogni pagina
+            const existing = scanStore.get(scanId);
+            if (existing) {
+              scanStore.set(scanId, { ...existing, progress });
+            }
+          }
+        );
+
+        const aggregated = aggregateResults(url, pages, totalDuration);
+        const existing = scanStore.get(scanId)!;
+
+        scanStore.set(scanId, {
+          ...existing,
+          ...aggregated,
+          id: scanId,
+          status: 'completed',
+          passes: [],
+          incomplete: [],
+          customChecks: [],
+          manualCheckRequired: existing.manualCheckRequired,
+          progress: undefined,
+        });
+
+        console.info(
+          `[api/scan] Multi-page completata ID=${scanId}, ${pages.length} pagine, score=${aggregated.score.overall}`
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[api/scan] Errore ID=${scanId}:`, errorMessage);
       const existing = scanStore.get(scanId)!;
-      scanStore.set(scanId, {
-        ...existing,
-        status: 'failed',
-        error: errorMessage,
-      });
+      scanStore.set(scanId, { ...existing, status: 'failed', error: errorMessage });
     }
   });
 
@@ -113,13 +148,16 @@ router.get('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: `Scansione ${id} non trovata` });
   }
 
-  // Se ancora in corso restituisce solo lo stato
+  // Se ancora in corso restituisce stato + progresso multi-pagina
   if (result.status === 'running' || result.status === 'pending') {
     return res.json({
       scanId: id,
       status: result.status,
       url: result.url,
-      message: 'Scansione in corso...',
+      message: result.progress
+        ? `Analisi pagina ${result.progress.pagesScanned + 1} di ${result.progress.pagesTotal}: ${result.progress.currentUrl}`
+        : 'Scansione in corso...',
+      progress: result.progress ?? null,
     });
   }
 

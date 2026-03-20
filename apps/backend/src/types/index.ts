@@ -111,6 +111,18 @@ export interface ManualCheckCriterion {
   en_301_549: string;
 }
 
+// ─── Risultato singola pagina (per multi-page) ────────────────────────────
+
+export interface PageResult {
+  url: string;
+  score: Score;
+  conformanceLevel: ConformanceLevel;
+  summary: ScanSummary;
+  violations: ViolationDetail[];
+  duration: number;
+  error?: string;
+}
+
 // ─── Risultato scansione unificato ────────────────────────────────────────
 
 export interface ScanResult {
@@ -129,6 +141,14 @@ export interface ScanResult {
   manualCheckRequired: ManualCheckCriterion[];
   screenshotBase64?: string;
   error?: string;
+  // Campi multi-pagina (opzionali)
+  maxPages?: number;
+  pages?: PageResult[];
+  progress?: {
+    currentUrl: string;
+    pagesScanned: number;
+    pagesTotal: number;
+  };
 }
 
 // ─── Input API ────────────────────────────────────────────────────────────
@@ -138,6 +158,7 @@ export interface ScanOptions {
   standard: 'wcag21' | 'wcag22';
   locale: 'it' | 'en';
   includeScreenshot: boolean;
+  maxPages: number;
 }
 
 export interface ScanRequest {
