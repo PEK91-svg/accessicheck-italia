@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { startScan, getScanStatus } from '../services/api';
+import { startScan, getScanStatus, extractErrorMessage } from '../services/api';
 import { ScanResult } from '../types';
 
 type ScanState =
@@ -79,7 +79,7 @@ export function useScan() {
       stopPolling();
       setState({
         phase: 'error',
-        message: err instanceof Error ? err.message : 'Errore durante il polling.',
+        message: extractErrorMessage(err, 'Errore durante il polling.'),
       });
     }
   }, []);
@@ -103,7 +103,7 @@ export function useScan() {
     } catch (err) {
       setState({
         phase: 'error',
-        message: err instanceof Error ? err.message : 'Impossibile avviare la scansione.',
+        message: extractErrorMessage(err, 'Impossibile avviare la scansione.'),
       });
     }
   }, [poll]);

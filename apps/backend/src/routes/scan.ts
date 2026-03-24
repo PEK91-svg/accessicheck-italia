@@ -162,7 +162,7 @@ router.get('/:id', (req: Request, res: Response) => {
   }
 
   if (result.status === 'failed') {
-    return res.status(500).json({
+    return res.json({
       scanId: id,
       status: 'failed',
       url: result.url,

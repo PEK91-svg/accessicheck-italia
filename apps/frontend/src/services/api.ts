@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { ScanResult, ScanPollingResponse } from '../types';
 
 const api = axios.create({
@@ -6,6 +6,29 @@ const api = axios.create({
   timeout: 60_000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+/**
+ * Extracts a user-friendly error message from an axios error.
+ * Prefers the server's error message from the response body when available.
+ */
+export function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof AxiosError) {
+    const serverMessage = err.response?.data?.error;
+    if (typeof serverMessage === 'string' && serverMessage.length > 0) {
+      return serverMessage;
+    }
+    if (err.code === 'ECONNABORTED') {
+      return 'La richiesta ha impiegato troppo tempo. Riprova.';
+    }
+    if (!err.response) {
+      return 'Impossibile contattare il server. Verificare la connessione e riprovare.';
+    }
+  }
+  if (err instanceof Error && err.message.length > 0) {
+    return err.message;
+  }
+  return fallback;
+}
 
 /**
  * Avvia una nuova scansione. Restituisce lo scanId.
